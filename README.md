@@ -1,108 +1,123 @@
 # Project Darwin
 
-Project Darwin 是一个多智能体生存沙盒，用来观察资源压力、通信成本、协作行为和代际学习接口在统一离散回合环境中的演化趋势。
+Project Darwin 是一个多智能体生存沙盒，用来做可复现的 agent 行为实验。当前仓库已经不是一个只有基础移动和采集的原型，而是一个包含回合制环境、回放系统、结构化记忆检索、短期规划、社会推理、LLM 决策和基准实验入口的完整实验底座。
 
-当前仓库已经完成以下基础能力：
+它当前更适合回答这类问题：
 
-- 一个可运行的 10x10 回合制世界。
-- 多个带不同性格标签的 Agent。
-- 资源采集、移动、消息计费、死亡规则。
-- 统一事件流与逐回合快照。
-- Replay 文件落盘与 Dashboard 历史帧回看。
-- 启发式本能层与基础 gold 协作机制。
-- 本地 lineage 记忆层、规则反思提取与向量检索。
-- Qdrant 向量化存储接入、run-group 隔离与结构化记忆检索。
-- LLM 决策层、第三方 API 适配、结构化动作输出与启发式兜底回退。
+- 资源压力和通信成本会怎样改变 agent 的决策。
+- 带记忆、规划、社会推理的 LLM agent 是否优于弱化版本。
+- 协作、欺骗、信任更新和资源竞争会在什么条件下更频繁出现。
+- 不同实验配置下，结果能否被稳定回放、比较和聚合。
 
-当前项目重点不是“已经拥有完整 LLM Agent”，而是已经搭好了一个可复现、可回放、可扩展的实验底座，后续可以继续往欺骗机制、信任状态、LLM 决策层和自动化代际实验推进。
+## 当前状态
 
-## 1. 当前项目目标
+当前仓库已经具备以下能力：
 
-Project Darwin 当前关注的问题是：
+- 确定性的离散回合制网格世界。
+- 默认 6x6 方形地图，支持在 Dashboard 中调整方形地图边长。
+- 结构化动作空间：移动、采集、发送消息、休息。
+- 统一事件流、逐回合快照、Replay 持久化与复盘。
+- Scripted、Random、Heuristic、LLM 四类 agent。
+- 基于 family 和 lineage 的本地记忆存储与检索。
+- 结构化记忆注入：hard constraints、soft hints、examples、typed lessons。
+- 短期规划：goal 和 planned target 会进入决策与回放。
+- 显式社会推理：reputation、utility、alliance likelihood、threat level。
+- 基准实验与消融实验：memory、planning、social reasoning 可开关。
+- Streamlit Dashboard，可直接设置最大轮次、地图边长和终止条件。
 
-- Agent 在资源稀缺和通信收费条件下会如何行动。
-- 不同性格标签是否会诱发不同的资源竞争与协作模式。
-- Gold 这样的高价值资源是否会触发协作、独占或后续的误导行为。
-- 如何通过统一事件流、快照和 replay 为后续记忆与演化实验提供数据基础。
+## 核心规则
 
-## 2. 当前世界规则
+### 世界与资源
 
-### 2.1 地图与资源
-
-- 世界默认是 10x10 网格。
-- 地图上有两种资源：
-  - `food`：普通资源。
-  - `gold`：高价值资源。
-- 初始资源分布由确定性规则生成，而不是完全随机。这保证了实验可复现。
+- 世界是网格地图，当前默认配置为 6x6。
+- 地图默认保持方形；在界面中通过单一边长参数控制。
+- 资源包括 food 和 gold。
+- 初始资源分布由确定性规则生成，保证实验可复现。
+- 当前默认配置没有启用集中式资源布局，竞争主要通过更小地图和资源压力产生。
 
 相关实现：
 
-- [project_darwin/environment/resource_rules.py](project_darwin/environment/resource_rules.py)
 - [project_darwin/simulation/run_context.py](project_darwin/simulation/run_context.py)
+- [project_darwin/environment/resource_rules.py](project_darwin/environment/resource_rules.py)
+- [project_darwin/experiments/configs/default.py](project_darwin/experiments/configs/default.py)
 
-### 2.2 Agent 可执行动作
+### 动作空间
 
-当前 Agent 只能通过结构化动作影响世界，不允许直接自由文本控制环境。
+Agent 只能通过结构化动作影响环境，当前动作包括：
 
-动作类型包括：
+- rest
+- move
+- forage
+- message
 
-- `rest`
-- `move`
-- `message`
-- `forage`
+消息是结构化事件，不是自由文本协议。当前动作对象还包含：
+
+- decision_source
+- decision_note
+- current_goal
+- planned_target_position
 
 相关实现：
 
 - [project_darwin/agents/action_space.py](project_darwin/agents/action_space.py)
 
-### 2.3 能量与生存规则
+### 能量、采集与死亡
 
 - 移动会扣除固定能量。
-- 发消息会按字符长度扣除能量。
-- 采集 `food` 或 `gold` 会增加能量。
-- 如果 Agent 能量小于等于 0，则死亡。
-
-- `sender_id`
-- `sender_family_id`
-- `content`
-目前已支持的消息意图包括：
-
-- `contact`
-- `share_food`
-- `share_gold`
-
-这为后续做协作、误导、欺骗检测提供了基础。
+- 发送消息会按字符长度扣除能量。
+- 采集 food 或 gold 会增加能量。
+- 能量小于等于 0 时 agent 死亡。
+- 采集时可能触发 cooperation 事件。
 
 相关实现：
 
-- [project_darwin/agents/action_space.py](project_darwin/agents/action_space.py)
 - [project_darwin/environment/env_engine.py](project_darwin/environment/env_engine.py)
-- 合作分账会产生独立的 `cooperation` 事件。
+
+### 终止条件
+
+运行不再只是固定跑满轮次。
+
+- 默认情况下，只剩 1 个 agent 存活时会提前结束。
+- 同时始终保留最大轮次作为上限。
+- 可以关闭提前结束逻辑，使模拟继续跑到 max_turns。
 
 相关实现：
-- [project_darwin/environment/env_engine.py](project_darwin/environment/env_engine.py)
 
-## 3. 当前 Agent 类型
+- [project_darwin/simulation/scheduler.py](project_darwin/simulation/scheduler.py)
+- [project_darwin/simulation/run_context.py](project_darwin/simulation/run_context.py)
 
-### 3.1 ScriptedSurvivor
-- 看到附近 Agent 时，非 silent 会发极简 token。
-- 其他情况按固定方向循环移动。
+## Agent 类型
 
+### ScriptedSurvivor
+
+规则最简单的 agent，用于生成稳定可解释的基线行为：
+
+- 有资源就采集。
+- 在某些条件下发送极简消息。
+- 其他情况按固定模式移动。
+
+相关实现：
 
 - [project_darwin/agents/base_agent.py](project_darwin/agents/base_agent.py)
 
-### 3.2 RandomSurvivor
+### RandomSurvivor
 
-这是受约束随机 Agent，主要用于验证逻辑覆盖：
-
+受约束随机 agent，主要用于压测环境和事件链路。
 
 相关实现：
 
-这是当前阶段 1 的核心 Agent，也是“启发式本能层”的实现。
+- [project_darwin/agents/random_agent.py](project_darwin/agents/random_agent.py)
 
-其决策链是：
+### HeuristicSurvivor
 
-- 读取 trait config。
+当前最强的非 LLM agent，也是 LLM 失败时的 fallback。它已经不只是简单 trait policy，而是会联合使用：
+
+- 基础 trait 偏置。
+- 扩展 observation。
+- 结构化 memory package。
+- 当前短期计划。
+- 资源热点和未探索位置。
+- 社会推理结果和可疑信号过滤。
 
 相关实现：
 
@@ -110,373 +125,276 @@ Project Darwin 当前关注的问题是：
 - [project_darwin/agents/policy.py](project_darwin/agents/policy.py)
 - [project_darwin/agents/traits.py](project_darwin/agents/traits.py)
 
-## 4. 启发式本能层说明
+### LLMSurvivor
 
-阶段 1 的目标是：在不调用大模型的情况下，先跑出稳定、可解释的性格差异。
+LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能力包括：
 
-### 4.1 Trait 层
+- 使用结构化 prompt 做动作决策。
+- 接收结构化记忆包而不是平面字符串。
+- 接收当前 short-term plan。
+- 接收显式社会推理上下文。
+- 对输出进行结构化解析和防御性校验。
+- 在模型不可用或返回异常时回退到 HeuristicSurvivor。
 
-当前 trait 体系由两部分组成：
+相关实现：
 
-- `TraitProfile`：身份标签。
-- `TraitConfig`：行为偏置配置。
+- [project_darwin/agents/llm_agent.py](project_darwin/agents/llm_agent.py)
+- [project_darwin/agents/llm_adapter.py](project_darwin/agents/llm_adapter.py)
+- [project_darwin/agents/cognition_graph.py](project_darwin/agents/cognition_graph.py)
+- [project_darwin/agents/prompt_builder.py](project_darwin/agents/prompt_builder.py)
 
-每种 trait 当前都配置了：
+## Observation、Memory、Planning、Social Reasoning
 
-- 基础动作偏置。
-- 低能量偏置。
-- 看到 food 的偏置。
-- 看到 gold 的偏置。
-- 看到其他 Agent 的偏置。
-- 资源优先级。
-- 探索方向循环。
-- 默认消息 token。
+### 扩展 Observation
 
-目前三种 trait 为：
+当前 observation 不只包含可见资源和附近 agent，还包括：
 
-- `GREEDY`
-- `COOPERATIVE`
-- `SILENT`
+- recent self events
+- recent received messages
+- recent positions
+- explored positions
+- nearby unexplored positions
+- resource hotspots
+- agent social profiles
+- exploration ratio
 
-### 4.2 Policy 层
+这让 agent 的决策可以基于局部历史，而不只是单步视野。
 
-当前 policy 层主要做三件事：
+相关实现：
 
-- 把 observation 压成一组可解释特征。
-- 根据 TraitConfig 计算动作分数。
-- 选择移动方向与动作采样。
+- [project_darwin/environment/observation_builder.py](project_darwin/environment/observation_builder.py)
+- [project_darwin/simulation/scheduler.py](project_darwin/simulation/scheduler.py)
 
-核心特征目前包括：
+### Case-Based Memory
 
-- 是否低能量。
-- 脚下是否有资源。
-- 视野内 food 数量。
-- 视野内 gold 数量。
-- 附近 Agent 数量。
+当前记忆不是只有死亡总结，而是包含四类 case：
 
-## 5. 事件系统与 Replay
+- death_reflection
+- success_reflection
+- cooperation_reflection
+- deception_reflection
 
-### 5.1 统一事件 Schema
+反思会在运行结束后生成并写入本地 store，之后按 family 和 lineage 检索。
 
-阶段 0 已经完成统一事件结构。
+相关实现：
 
-每条事件至少包含：
+- [project_darwin/memory/reflection_engine.py](project_darwin/memory/reflection_engine.py)
+- [project_darwin/memory/lineage_store.py](project_darwin/memory/lineage_store.py)
 
-- `turn`
-- `event_type`
-- `agent_id`
-- `family_id`
-- `payload`
+### Structured Retrieval
 
-当前 event_type 规范包括：
+检索结果会被整理成 MemoryContextPackage，而不是简单 lesson 列表。当前包结构包括：
 
-- `turn_start`
-- `turn_end`
-- `move`
-- `message`
-- `forage`
-- `forage_miss`
-- `cooperation`
-- `rest`
-- `death`
+- hard_constraints
+- soft_hints
+- examples
+- typed_lessons
+- directives，例如 action_bias、target_preference、caution_against
+
+相关实现：
+
+- [project_darwin/memory/retrieval_engine.py](project_darwin/memory/retrieval_engine.py)
+
+### Short-Term Planning
+
+当前系统已经支持短期计划，计划会影响 heuristic 和 LLM 的决策。计划信息也会被写入 replay：
+
+- current_goal
+- planned_target_position
+- created_turn
+
+相关实现：
+
+- [project_darwin/agents/action_space.py](project_darwin/agents/action_space.py)
+- [project_darwin/agents/llm_agent.py](project_darwin/agents/llm_agent.py)
+- [project_darwin/agents/prompt_builder.py](project_darwin/agents/prompt_builder.py)
+- [project_darwin/environment/env_engine.py](project_darwin/environment/env_engine.py)
+
+### Social Reasoning
+
+当前社会推理已经超出单一 trust score。系统显式维护并暴露：
+
+- sender_reputation
+- message_utility
+- alliance_likelihood
+- threat_level
+
+这些值会进入 observation、heuristic 决策和 LLM prompt。
+
+相关实现：
+
+- [project_darwin/simulation/trust_tracker.py](project_darwin/simulation/trust_tracker.py)
+- [project_darwin/environment/observation_builder.py](project_darwin/environment/observation_builder.py)
+- [project_darwin/agents/heuristic_agent.py](project_darwin/agents/heuristic_agent.py)
+- [project_darwin/agents/prompt_builder.py](project_darwin/agents/prompt_builder.py)
+
+## 事件、Replay 与指标
+
+### 统一事件流
+
+系统会记录结构化事件，当前常见事件包括：
+
+- turn_start
+- turn_end
+- move
+- message
+- forage
+- forage_miss
+- cooperation
+- rest
+- death
+- trust_update
 
 相关实现：
 
 - [project_darwin/simulation/event_bus.py](project_darwin/simulation/event_bus.py)
 
-### 5.2 逐回合快照
+### Replay 与快照
 
-每次运行现在都会保存 `snapshots`，每一帧都能恢复：
+每次运行都会写出：
 
-- 当前 turn。
-- 全部 Agent 状态。
-- 全部资源状态。
-- 当前 event_count。
+- metadata
+- world
+- events
+- snapshots
+- metrics
+- communication
+- run_summary
 
-这使得 Dashboard 能够做历史帧回看，而不只是展示最终结果。
+快照可用于逐帧复盘，replay 中还保留了规划与决策来源信息。
 
 相关实现：
 
+- [project_darwin/analytics/replay_store.py](project_darwin/analytics/replay_store.py)
 - [project_darwin/simulation/state.py](project_darwin/simulation/state.py)
 - [project_darwin/simulation/scheduler.py](project_darwin/simulation/scheduler.py)
-- [project_darwin/analytics/replay_store.py](project_darwin/analytics/replay_store.py)
 
-### 5.3 Replay 元数据
+### Metrics 与通信分析
 
-每个 replay 文件目前包含：
+当前指标包括：
 
-- `metadata`
-- `world`
-- `events`
-- `snapshots`
-- `metrics`
-- `communication`
+- turn
+- alive_agents
+- average_survival_turn
+- total_messages
+- total_message_cost
+- total_forage_events
+- total_cooperation_events
+- total_false_gold_messages
+- total_trust_updates
+- resource_acquisition_rate
+- message_cost_per_turn
+- cooperation_rate
+- deception_frequency
 
-`metadata` 当前至少包括：
+通信分析包括：
 
-- `run_id`
-- `generation`
-- `lineage_id`
-- `mode`
-- `seed`
-- `family_ids`
-
-## 6. 当前分析能力
-
-## 6. 记忆层与分析能力
-
-### 6.1 Lineage Memory
-
-阶段 2 已完成一个本地可运行的记忆层，目标不是直接接入 LLM 总结，而是先把可验证的数据闭环跑通。
-
-当前流程是：
-
-- 运行结束后，`reflection_engine.py` 会从死亡事件及最近事件窗口中提取规则化反思。
-- 反思被写入本地嵌入式 Qdrant，并按 `experiment_id + run_group` 隔离存放在 `artifacts/qdrant/`。
-- 后续回合中，`scheduler.py` 会在 agent 决策前根据当前 observation 检索同 family、同 lineage 的结构化记忆结果，再把 lesson 文本映射给 agent。
-- `HeuristicSurvivor` 会把检索结果作为 memory context，对明显危险的高成本行为做轻量降权。
-
-当前记忆条目包含：
-
- - `experiment_id`
- - `run_group`
-- `family_id`
-- `lineage_id`
-- `generation`
- - `trait`
- - `death_reason`
- - `memory_type`
-- `source_run_id`
-- `source_agent_id`
-- `death_turn`
-- `situation`
-- `lesson`
-- `tags`
-
-当前检索结果至少包含：
-
-- memory text
-- lesson
-- score
-- generation
-- metadata
-
-相关实现：
-
-- [project_darwin/memory/lineage_store.py](project_darwin/memory/lineage_store.py)
-- [project_darwin/memory/reflection_engine.py](project_darwin/memory/reflection_engine.py)
-- [project_darwin/memory/retrieval_engine.py](project_darwin/memory/retrieval_engine.py)
-- [project_darwin/simulation/scheduler.py](project_darwin/simulation/scheduler.py)
-- [project_darwin/agents/heuristic_agent.py](project_darwin/agents/heuristic_agent.py)
-
-### 6.2 Metrics
-
-当前统计项包括：
-
-- 当前 turn
-- 存活 Agent 数
-- 总消息数
-- 总消息成本
-- 采集次数
-- 协作事件次数
-- `false_gold` 消息数
-- trust 更新次数
-- 剩余资源数
+- vocabulary_size
+- mean_message_length
+- entropy
 
 相关实现：
 
 - [project_darwin/analytics/metrics_engine.py](project_darwin/analytics/metrics_engine.py)
-
-### 6.3 Communication Analysis
-
-当前通信分析包括：
-
-- 词表大小
-- 平均消息长度
-- 信息熵
-- `share_gold` 信号数
-- `false_gold` 信号数
-
-相关实现：
-
 - [project_darwin/analytics/communication_analysis.py](project_darwin/analytics/communication_analysis.py)
 
-## 7. Dashboard 当前能力
+## 基准实验与可做的实验
 
-当前 Dashboard 基于 Streamlit，已经可以：
+当前 LLM agent 不是只能跑单次演示，而是已经支持以下实验类型：
 
-- 直接触发模拟运行。
-- 选择运行模式：`scripted`、`random`、`heuristic`。
-- 加载已有 replay。
-- 使用 Replay Frame 滑块查看历史帧。
-- 查看地图、Agent 状态、Agent 日志。
-- 查看 Global Event Stream 与当前回合事件。
-- 查看 Timeline Mode。
-- 查看 Replay Summary。
+- scripted、heuristic、llm 的横向基线对比。
+- llm_without_memory 与 llm_with_memory 的记忆消融。
+- llm_without_planning 的规划消融。
+- llm_without_social_reasoning 的社会推理消融。
+- 多 run 聚合，输出 benchmark manifest 和 group summaries。
+
+当前 benchmark group 定义见：
+
+- [project_darwin/experiments/run_manager.py](project_darwin/experiments/run_manager.py)
+- [project_darwin/analytics/metrics_engine.py](project_darwin/analytics/metrics_engine.py)
+
+## Dashboard
+
+Dashboard 基于 Streamlit，当前支持两种工作模式：
+
+- 模拟模式
+- 复盘模式
+
+模拟模式支持：
+
+- 选择 agent 模式：scripted、random、heuristic、llm
+- 调整方形地图边长
+- 调整最大轮次
+- 配置是否在只剩 1 个 agent 时提前结束
+- 调整步进渲染延迟
+
+复盘模式支持：
+
+- 选择已有 replay
+- 按帧前进、后退、跳到终局
+- 查看地图、当前回合动作和消息
+- 查看计划、决策来源、社会线索等回放信息
 
 相关实现：
 
 - [project_darwin/dashboard/app.py](project_darwin/dashboard/app.py)
+- [project_darwin/dashboard/data_reader.py](project_darwin/dashboard/data_reader.py)
 
-## 8. 项目结构说明
+## 运行方式
 
-```text
-project_darwin/
-├── agents/
-│   ├── action_space.py
-│   ├── base_agent.py
-│   ├── cognition_graph.py
-│   ├── heuristic_agent.py
-│   ├── llm_adapter.py
-│   ├── policy.py
-│   ├── random_agent.py
-│   └── traits.py
-├── analytics/
-│   ├── communication_analysis.py
-│   ├── metrics_engine.py
-│   └── replay_store.py
-├── dashboard/
-│   ├── app.py
-│   ├── data_reader.py
-│   └── terminal_view.py
-├── environment/
-│   ├── env_engine.py
-│   ├── observation_builder.py
-│   └── resource_rules.py
-├── experiments/
-│   ├── configs/default.py
-│   ├── run_manager.py
-│   └── terminal_run.py
-├── memory/
-│   ├── lineage_store.py
-│   ├── reflection_engine.py
-│   └── retrieval_engine.py
-└── simulation/
-    ├── event_bus.py
-    ├── run_context.py
-    ├── scheduler.py
-    └── state.py
+### 1. 安装依赖
+
+仓库运行需要 Python 依赖，以及在启用记忆和 LLM 时对应的库与服务端点。当前仓库没有在 README 中固定锁定安装命令，建议按你的环境管理方式安装项目依赖后再运行。
+
+### 2. 运行测试
+
+```bash
+python3.11 -m unittest discover -s tests -q
 ```
 
-### 8.1 agents
+### 3. 运行命令行入口
 
-- `action_space.py`：动作和消息结构。
-- `base_agent.py`：BaseAgent 与 ScriptedSurvivor。
-- `heuristic_agent.py`：阶段 1 的启发式 Agent。
-- `random_agent.py`：随机 Agent。
-- `traits.py`：trait 标签与配置库。
-- `policy.py`：启发式策略层。
-- `llm_adapter.py`：大模型接口占位层。
-- `cognition_graph.py`：LangGraph 认知图占位层。
+```bash
+python3.11 -m project_darwin.experiments.run_manager
+```
 
-### 8.2 analytics
+### 4. 运行终端视图
 
-- `metrics_engine.py`：全局指标统计。
-- `communication_analysis.py`：消息分析。
-- `replay_store.py`：replay 落盘。
+```bash
+python3.11 -m project_darwin.experiments.terminal_run
+```
 
-### 8.3 dashboard
+### 5. 启动 Dashboard
 
-- `app.py`：网页控制台与回放页面。
-- `data_reader.py`：读取 replay 文件。
-- `terminal_view.py`：终端渲染器。
+```bash
+streamlit run project_darwin/dashboard/app.py --server.address 0.0.0.0 --server.port 8502
+```
 
-### 8.4 environment
+## LLM 配置
 
-- `env_engine.py`：执行动作并修改世界。
-- `observation_builder.py`：构建 Agent 观测。
-- `resource_rules.py`：初始资源布局。
+LLM 层使用 OpenAI 兼容接口，适配器会优先读取以下环境变量：
 
-### 8.5 experiments
+- DARWIN_LLM_API_KEY
+- DARWIN_LLM_BASE_URL
+- DARWIN_LLM_MODEL
 
-- `configs/default.py`：默认实验参数。
-- `run_manager.py`：组装 world 与 agents。
-- `terminal_run.py`：终端模式入口。
+同时兼容以下 OpenAI 风格变量：
 
-### 8.6 memory
+- OPENAI_API_KEY
+- OPENAI_BASE_URL
+- OPENAI_MODEL
 
-- `lineage_store.py`：本地嵌入式 Qdrant lineage 记忆仓库。
-- `reflection_engine.py`：基于死亡与最近事件窗口的规则反思提取。
-- `retrieval_engine.py`：基于 observation 的同族记忆检索接口。
-
-### 8.7 simulation
-
-- `event_bus.py`：统一事件系统。
-- `run_context.py`：SimulationConfig。
-- `scheduler.py`：核心调度器。
-- `state.py`：世界状态与序列化。
-
-## 9. 一次运行的调用链
-
-点击 Dashboard 中的 `Run Live Simulation` 后，主调用链是：
-
-1. [project_darwin/dashboard/app.py](project_darwin/dashboard/app.py) `main()`
-2. [project_darwin/dashboard/app.py](project_darwin/dashboard/app.py) `_run_live_simulation(mode)`
-3. [project_darwin/experiments/configs/default.py](project_darwin/experiments/configs/default.py) `default_config()`
-4. [project_darwin/experiments/run_manager.py](project_darwin/experiments/run_manager.py) `build_*_simulation(...)`
-5. [project_darwin/simulation/scheduler.py](project_darwin/simulation/scheduler.py) `Scheduler.run(...)`
-7. [project_darwin/environment/observation_builder.py](project_darwin/environment/observation_builder.py) `build_observation(...)`
-8. [project_darwin/memory/retrieval_engine.py](project_darwin/memory/retrieval_engine.py) 检索当前 observation 对应的 lineage memories
-9. Agent `set_memory_context(...)` 与 `choose_action(...)`
-10. [project_darwin/environment/env_engine.py](project_darwin/environment/env_engine.py) `step(...)`
-11. [project_darwin/simulation/event_bus.py](project_darwin/simulation/event_bus.py) 记录事件
-12. [project_darwin/analytics/metrics_engine.py](project_darwin/analytics/metrics_engine.py) 和 [project_darwin/analytics/communication_analysis.py](project_darwin/analytics/communication_analysis.py)
-13. [project_darwin/memory/reflection_engine.py](project_darwin/memory/reflection_engine.py) 提取死亡反思
-14. [project_darwin/memory/lineage_store.py](project_darwin/memory/lineage_store.py) 写入本地记忆库
-15. [project_darwin/analytics/replay_store.py](project_darwin/analytics/replay_store.py) `write_run(...)`
-16. [project_darwin/dashboard/data_reader.py](project_darwin/dashboard/data_reader.py) `load_replay(...)`
-
-## 10. 当前项目还没完成的部分
-
-以下能力目前仍处于占位或半成品状态：
-
-- LLM API 调用尚未接入。
-- LangGraph 认知图尚未接入真实流程。
-- 反思仍是规则抽取，不是 LLM 生成总结。
-- 记忆检索当前使用本地哈希嵌入，不是语义质量更高的模型 embedding。
-- 欺骗与误导检测还未实现。
-- 信任关系、背叛、家族策略传承还未实现。
-- gold 协作规则目前只是第一版，不含谈判、争夺和信誉成本。
-
-## 11. 当前开发阶段状态
-
-### 已完成
-
-- 阶段 0：事件 schema、回合快照、run metadata、结构化消息底座。
-- 阶段 1：启发式本能层。
-- 阶段 1.5：gold 协作规则、语义化消息意图、基础博弈事件统计。
-- 阶段 2：本地 lineage 记忆库、规则反思提取、同族检索与记忆注入。
-- 阶段 3：欺骗消息、短期 trust tracker、基于 social hint 的移动偏置。
-- 阶段 4：Qdrant 向量化接入、run-group 隔离、结构化检索返回与阈值参数化。
-- 阶段 5：第三方 LLM API 接入、专属 LLM Agent、结构化动作输出与防御性回退。
-
-### 下一步建议
-
-更自然的下一阶段是：
-
-1. 把 trust 状态接进 Dashboard 和 replay 详情页。
-2. 扩展更多欺骗策略与信誉成本。
-3. 用真实 embedding 与 LLM reflection 替换当前规则版 memory pipeline。
-
-### 12.5 配置第三方 LLM API
-
-当前 LLM 层使用 OpenAI 兼容接口，优先读取以下环境变量：
-
-- `DARWIN_LLM_API_KEY`
-- `DARWIN_LLM_BASE_URL`
-- `DARWIN_LLM_MODEL`
+仓库根目录的 [.env.llm](.env.llm) 会在启动时自动读取，因此你可以直接维护这个文件。
 
 示例：
 
 ```bash
-export DARWIN_LLM_API_KEY="your-third-party-key"
+export DARWIN_LLM_API_KEY="your-key"
 export DARWIN_LLM_BASE_URL="https://your-provider.example/v1"
 export DARWIN_LLM_MODEL="your-model-name"
 ```
 
-仓库根目录也提供了一个可直接修改的配置文件：[.env.llm](/workspaces/jinheng/project-Darwin/.env.llm)。
-
-加载方式：
+或：
 
 ```bash
 set -a
@@ -484,62 +402,53 @@ source .env.llm
 set +a
 ```
 
-## 12. 运行方式
+如果没有配置可用 API key，LLM agent 会退回到 heuristic fallback，而不是直接让运行失败。
 
-### 12.1 运行测试
+## 项目结构
 
-```bash
-python -m unittest discover -s tests
+```text
+project_darwin/
+├── agents/
+├── analytics/
+├── dashboard/
+├── environment/
+├── experiments/
+├── memory/
+└── simulation/
 ```
 
-### 12.2 运行命令行主入口
+主要目录职责：
 
-```bash
-python -m project_darwin.experiments.run_manager
-```
+- agents：动作结构、启发式 agent、LLM agent、prompt 和认知图。
+- analytics：指标、通信分析、replay 输出。
+- dashboard：Streamlit 工作台与终端视图。
+- environment：环境执行、资源规则、observation 构造。
+- experiments：默认配置、批量实验和命令行入口。
+- memory：反思生成、检索、存储。
+- simulation：状态、事件总线、调度器、运行配置。
 
-### 12.3 运行终端模式
+## 当前测试覆盖
 
-```bash
-python -m project_darwin.experiments.terminal_run
-```
+当前测试已经覆盖到：
 
-### 12.4 启动 Streamlit Dashboard
+- replay 和 snapshots 是否正确落盘
+- event schema 是否完整
+- 并行收集动作是否生效
+- 扩展 observation 是否正确注入
+- case-based memory 是否生成与检索
+- structured memory package 是否进入 agent 和 prompt
+- 短期规划是否更新并影响 fallback
+- social reasoning 是否进入 observation 和 agent profile
+- benchmark group 与 planning/social toggles 是否正确记录
+- 默认小地图配置是否生效
+- 终止条件是否支持只剩 1 个存活者时提前结束
 
-```bash
-streamlit run project_darwin/dashboard/app.py --server.address 0.0.0.0 --server.port 8502
-```
+本地最近一次全量测试结果为 42 个测试通过。
 
-## 13. 测试覆盖范围
+## 下一步更自然的方向
 
-当前测试已覆盖：
+如果继续往前推进，当前最自然的下一步是：
 
-- replay 与 snapshot 是否正确落盘。
-- event schema 是否完整。
-- message 是否为结构化消息体。
-- random simulation 是否能产生消息。
-- heuristic simulation 是否能运行。
-- heuristic trait 配置是否完整。
-- cooperative gold 消息是否结构化。
-- gold 是否能与附近 Agent 协作分账。
-- 阶段 2 反思是否会落入 lineage store。
-- 同 family 的记忆是否能被检索，异族记忆是否被过滤。
-- 不同 run_group 的 Qdrant 记忆是否物理隔离。
-- retrieval engine 是否返回结构化 memory 结果与必要 metadata。
-- heuristic agent 是否接收 memory context 并调整 message 倾向。
-- 非法或残缺的模型输出是否会触发修复重试与 heuristic fallback。
-- llm agent 是否能与 scripted agent 同场运行。
-
-相关文件：
-
-- [tests/test_simulation.py](tests/test_simulation.py)
-
-## 14. 项目定位总结
-
-当前的 Project Darwin 是：
-
-- 一个已经能稳定推进世界状态的回合制沙盒。
-- 一个已经具备统一事件流和 replay 回看的实验平台。
-- 一个已经开始出现启发式性格差异与基础协作行为的 Agent 系统。
-
-它还不是完整的“多代演化 LLM 社会”，但已经具备继续向那个方向推进所需的工程底座。
+1. 把 replay 页面上的运行参数和 toggle 展示得更完整。
+2. 让 dashboard 支持更多实验参数，而不只是地图和终止条件。
+3. 继续增强竞争机制，例如调整出生点或资源刷新规则。
