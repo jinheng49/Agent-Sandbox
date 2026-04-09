@@ -1,7 +1,7 @@
 import json
 from typing import Any
 
-from project_darwin.agents.action_space import ActionType, ShortTermPlan, action_schema_text
+from project_darwin.agents.action_space import AgentAction, ActionType, ShortTermPlan, action_schema_text
 from project_darwin.agents.policy import PolicyBias, apply_policy_bias, extract_features, get_action_scores
 from project_darwin.agents.traits import TraitProfile, get_trait_config
 from project_darwin.environment.observation_builder import Observation
@@ -17,6 +17,7 @@ def build_llm_prompts(
     memory_context: MemoryContextPackage | list[str],
     current_plan: ShortTermPlan | None,
     policy_bias: dict[str, float],
+    heuristic_recommendation: AgentAction | None,
 ) -> tuple[str, str]:
     memory_package = coerce_memory_package(memory_context)
     system_prompt = (
@@ -29,6 +30,11 @@ def build_llm_prompts(
         "3. Use family memory when it is relevant to the current situation.\n"
         "4. Keep a short-term goal for the next 2 to 4 turns when it still makes sense.\n"
         "5. Respect visible resources, nearby agents, and trust hints.\n\n"
+        "You will receive a neural-symbolic fusion block that contains: "
+        "(a) instinct scores from the fast heuristic layer, "
+        "(b) family memory lessons retrieved from lineage storage, and "
+        "(c) a heuristic draft action. "
+        "Treat those as priors, then produce the final action JSON.\n\n"
         "Always include current_goal and planned_target_position in the JSON. "
         "If an existing plan is still valid, continue it instead of inventing a new one.\n\n"
         "Required JSON schema:\n"
@@ -43,6 +49,7 @@ def build_llm_prompts(
             memory_context=memory_package,
             current_plan=current_plan,
             policy_bias=policy_bias,
+            heuristic_recommendation=heuristic_recommendation,
         ),
         indent=2,
         ensure_ascii=True,
@@ -71,12 +78,16 @@ def _build_prompt_context(
     memory_context: MemoryContextPackage,
     current_plan: ShortTermPlan | None,
     policy_bias: dict[str, float],
+    heuristic_recommendation: AgentAction | None,
 ) -> dict[str, Any]:
     trait_profile = TraitProfile(trait)
     trait_config = get_trait_config(trait_profile)
     base_scores = get_action_scores(observation, trait_config)
     merged_scores = apply_policy_bias(base_scores, _policy_bias_from_dict(policy_bias))
     features = extract_features(observation)
+    instinct_summary = _summarize_instinct(merged_scores)
+    memory_summary = _summarize_memory(memory_context)
+    heuristic_summary = _summarize_heuristic_recommendation(heuristic_recommendation)
     return {
         "agent": {
             "agent_id": agent_id,
@@ -94,6 +105,7 @@ def _build_prompt_context(
             "instruction": "Return a short-term goal, an optional target position, and the best action for this turn.",
         },
         "instinct": {
+            "summary": instinct_summary,
             "features": {
                 "energy": features.energy,
                 "energy_low": features.energy_low,
@@ -106,6 +118,15 @@ def _build_prompt_context(
                 "exploration_ratio": round(features.exploration_ratio, 4),
             },
             "action_scores": {action_type.value: round(score, 3) for action_type, score in merged_scores.items()},
+        },
+        "neural_symbolic_fusion": {
+            "instruction": (
+                "Fuse the fast instinct prior, the retrieved family memories, and the heuristic draft action. "
+                "Override them only when the current observation gives stronger evidence."
+            ),
+            "instinct_summary": instinct_summary,
+            "memory_summary": memory_summary,
+            "heuristic_recommendation": heuristic_summary,
         },
         "observation": {
             "turn": observation.turn,
@@ -232,3 +253,36 @@ def _policy_bias_from_dict(policy_bias: dict[str, float]) -> PolicyBias:
             for action_type in ActionType
         }
     )
+
+
+def _summarize_instinct(action_scores: dict[ActionType, float]) -> str:
+    ranked_actions = sorted(action_scores.items(), key=lambda item: item[1], reverse=True)[:3]
+    if not ranked_actions:
+        return "Fast instinct layer produced no strong action preference."
+    summary = ", ".join(f"{action_type.value} ({score:.2f})" for action_type, score in ranked_actions)
+    return f"Fast instinct layer ranks actions as: {summary}."
+
+
+def _summarize_memory(memory_context: MemoryContextPackage) -> str:
+    snippets = [
+        *memory_context.hard_constraints[:1],
+        *memory_context.soft_hints[:1],
+        *memory_context.examples[:1],
+        *memory_context.typed_lessons[:1],
+    ]
+    if not snippets:
+        return "No relevant family memories were retrieved for this turn."
+    return f"Retrieved family memory suggests: {' | '.join(snippets)}"
+
+
+def _summarize_heuristic_recommendation(heuristic_recommendation: AgentAction | None) -> str:
+    if heuristic_recommendation is None:
+        return "Heuristic layer did not produce a draft action."
+    parts = [f"Heuristic draft action: {heuristic_recommendation.action_type.value}"]
+    if heuristic_recommendation.direction is not None:
+        parts.append(f"direction={heuristic_recommendation.direction.value}")
+    if heuristic_recommendation.current_goal:
+        parts.append(f"goal={heuristic_recommendation.current_goal}")
+    if heuristic_recommendation.planned_target_position is not None:
+        parts.append(f"target={heuristic_recommendation.planned_target_position}")
+    return ", ".join(parts) + "."

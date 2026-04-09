@@ -41,13 +41,16 @@ from project_darwin.simulation.scheduler import Scheduler
 from project_darwin.simulation.state import AgentState, Position, ResourceNode, ResourceType, WorldState, deserialize_world_state
 from project_darwin.simulation.trust_tracker import TrustTracker
 from project_darwin.experiments.configs.default import default_config
+from project_darwin.dashboard.data_reader import build_experiment_catalog, build_generation_metric_rows
 
 
 class FakeLLMAdapter:
     def __init__(self, responses: list[str]) -> None:
         self.responses = list(responses)
+        self.calls: list[tuple[str, str]] = []
 
-    def complete(self, _system_prompt: str, _user_prompt: str) -> str:
+    def complete(self, system_prompt: str, user_prompt: str) -> str:
+        self.calls.append((system_prompt, user_prompt))
         if not self.responses:
             raise RuntimeError("No fake responses left")
         return self.responses.pop(0)
@@ -879,6 +882,12 @@ class SimulationTestCase(unittest.TestCase):
             ),
             current_plan=ShortTermPlan(current_goal="reach trusted gold", planned_target_position=(3, 1), created_turn=3),
             policy_bias={action_type.value: 0.0 for action_type in ActionType},
+            heuristic_recommendation=AgentAction(
+                action_type=ActionType.MOVE,
+                direction=Direction.RIGHT,
+                current_goal="reach trusted gold",
+                planned_target_position=(3, 1),
+            ),
         )
         payload = json.loads(user_prompt)
 
@@ -890,6 +899,10 @@ class SimulationTestCase(unittest.TestCase):
         self.assertIn("hard_constraints", payload["family_memory"])
         self.assertIn("soft_hints", payload["family_memory"])
         self.assertIn("examples", payload["family_memory"])
+        self.assertIn("neural_symbolic_fusion", payload)
+        self.assertIn("Fast instinct layer ranks actions", payload["neural_symbolic_fusion"]["instinct_summary"])
+        self.assertIn("Retrieved family memory suggests", payload["neural_symbolic_fusion"]["memory_summary"])
+        self.assertIn("Heuristic draft action", payload["neural_symbolic_fusion"]["heuristic_recommendation"])
 
     def test_scheduler_stores_success_and_cooperation_memories(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1241,13 +1254,20 @@ class SimulationTestCase(unittest.TestCase):
         self.assertEqual(action.decision_source, "heuristic_fallback")
 
     def test_llm_agent_uses_structured_action_output(self) -> None:
+        adapter = FakeLLMAdapter([
+            '{"action_type":"move","direction":"right","current_goal":"reach eastern hotspot","planned_target_position":{"x":2,"y":0}}'
+        ])
         agent = LLMSurvivor(
             agent_id="agent_a",
             family_id="alpha",
             trait=TraitProfile.COOPERATIVE,
-            llm_adapter=FakeLLMAdapter([
-                '{"action_type":"move","direction":"right","current_goal":"reach eastern hotspot","planned_target_position":{"x":2,"y":0}}'
-            ]),
+            llm_adapter=adapter,
+        )
+        agent.set_memory_context(
+            MemoryContextPackage(
+                hard_constraints=["Do not spend energy chasing suspicious gold without nearby evidence."],
+                soft_hints=["A visible eastern path is usually safer than a blind detour."],
+            )
         )
         world = WorldState(
             turn=1,
@@ -1264,6 +1284,12 @@ class SimulationTestCase(unittest.TestCase):
         self.assertEqual(action.decision_source, "llm")
         self.assertEqual(agent.current_plan.current_goal, "reach eastern hotspot")
         self.assertEqual(agent.current_plan.planned_target_position, (2, 0))
+        self.assertTrue(adapter.calls)
+        payload = json.loads(adapter.calls[-1][1])
+        self.assertIn("neural_symbolic_fusion", payload)
+        self.assertIn("Fast instinct layer ranks actions", payload["neural_symbolic_fusion"]["instinct_summary"])
+        self.assertIn("Retrieved family memory suggests", payload["neural_symbolic_fusion"]["memory_summary"])
+        self.assertIn("Heuristic draft action", payload["neural_symbolic_fusion"]["heuristic_recommendation"])
 
     def test_llm_agent_fallback_preserves_active_plan(self) -> None:
         agent = LLMSurvivor(
@@ -1386,6 +1412,45 @@ class SimulationTestCase(unittest.TestCase):
                 replay_path = Path(run_record["replay_path"])
                 self.assertTrue(replay_path.exists())
                 self.assertIn(f"generation_{run_record['generation']:03d}", str(replay_path))
+
+    def test_experiment_catalog_discovers_generation_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifact_root = Path(temp_dir)
+            manifest_dir = artifact_root / "exp-a" / "group-a"
+            manifest_dir.mkdir(parents=True, exist_ok=True)
+            manifest_path = manifest_dir / "experiment_manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "experiment": {
+                            "experiment_id": "exp-a",
+                            "run_group": "group-a",
+                            "lineage_id": "mixed_population",
+                            "ablation_mode": "llm_with_memory",
+                            "generations": 3,
+                            "runs_per_generation": 2,
+                        },
+                        "generation_summaries": [
+                            {"generation": 0, "average_survival_turn": 3.0, "entropy": 1.2, "deception_frequency": 0.1},
+                            {"generation": 1, "average_survival_turn": 4.5, "entropy": 1.0, "deception_frequency": 0.2},
+                        ],
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+            catalog = build_experiment_catalog(artifact_root)
+            survival_rows = build_generation_metric_rows(catalog[0]["manifest"], "average_survival_turn")
+
+            self.assertEqual(len(catalog), 1)
+            self.assertEqual(catalog[0]["experiment_id"], "exp-a")
+            self.assertEqual(catalog[0]["ablation_mode"], "llm_with_memory")
+            self.assertEqual(catalog[0]["latest_summary"]["average_survival_turn"], 4.5)
+            self.assertEqual(survival_rows, [
+                {"generation": 0, "average_survival_turn": 3.0},
+                {"generation": 1, "average_survival_turn": 4.5},
+            ])
 
     def test_baseline_benchmark_produces_group_summaries(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

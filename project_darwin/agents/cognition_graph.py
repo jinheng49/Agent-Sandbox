@@ -37,6 +37,7 @@ class CognitionGraph:
             memory_context=memory_package,
             current_plan=current_plan,
             policy_bias=policy_bias,
+            heuristic_recommendation=fallback_action,
         )
         raw_output = ""
         fallback_reason = ""

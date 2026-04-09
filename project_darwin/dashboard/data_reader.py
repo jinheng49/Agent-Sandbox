@@ -54,3 +54,54 @@ def build_replay_catalog(root: Path | None = None) -> list[dict[str, Any]]:
             }
         )
     return catalog
+
+
+def discover_experiment_manifest_paths(root: Path | None = None) -> list[Path]:
+    artifact_root = root or Path("artifacts")
+    if not artifact_root.exists():
+        return []
+    return sorted(candidate for candidate in artifact_root.rglob("experiment_manifest.json") if candidate.is_file())
+
+
+def build_experiment_catalog(root: Path | None = None) -> list[dict[str, Any]]:
+    artifact_root = root or Path("artifacts")
+    catalog: list[dict[str, Any]] = []
+    for manifest_path in discover_experiment_manifest_paths(artifact_root):
+        payload = load_replay(manifest_path)
+        experiment = payload.get("experiment", {})
+        generation_summaries = sorted(
+            payload.get("generation_summaries", []),
+            key=lambda row: int(row.get("generation", 0)),
+        )
+        latest_summary = generation_summaries[-1] if generation_summaries else {}
+        catalog.append(
+            {
+                "path": manifest_path,
+                "label": (
+                    f"{experiment.get('experiment_id', manifest_path.parent.name)}"
+                    f" · {experiment.get('run_group', 'unknown')}"
+                    f" · {experiment.get('ablation_mode', 'unknown')}"
+                ),
+                "experiment_id": str(experiment.get("experiment_id", manifest_path.parent.name)),
+                "run_group": str(experiment.get("run_group", "unknown")),
+                "lineage_id": str(experiment.get("lineage_id", "unknown")),
+                "ablation_mode": str(experiment.get("ablation_mode", "unknown")),
+                "generations": int(experiment.get("generations", len(generation_summaries))),
+                "runs_per_generation": int(experiment.get("runs_per_generation", 0)),
+                "manifest": payload,
+                "generation_summaries": generation_summaries,
+                "latest_summary": latest_summary,
+            }
+        )
+    return catalog
+
+
+def build_generation_metric_rows(manifest: dict[str, Any], metric_name: str) -> list[dict[str, float | int]]:
+    rows = sorted(manifest.get("generation_summaries", []), key=lambda row: int(row.get("generation", 0)))
+    return [
+        {
+            "generation": int(row.get("generation", 0)),
+            metric_name: float(row.get(metric_name, 0.0)),
+        }
+        for row in rows
+    ]

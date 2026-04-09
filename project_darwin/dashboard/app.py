@@ -10,9 +10,15 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import streamlit as st
+import pandas as pd
 
 from project_darwin.agents.llm_adapter import LLMAdapter
-from project_darwin.dashboard.data_reader import build_replay_catalog, load_replay
+from project_darwin.dashboard.data_reader import (
+    build_experiment_catalog,
+    build_generation_metric_rows,
+    build_replay_catalog,
+    load_replay,
+)
 from project_darwin.experiments.configs.default import default_config
 from project_darwin.experiments.run_manager import (
     build_heuristic_simulation,
@@ -28,6 +34,18 @@ AGENT_COLORS = {
     "agent_a": "#c84c2f",
     "agent_b": "#1f6b5a",
     "agent_c": "#1f4e79",
+}
+
+TRAIT_LABELS = {
+    "cooperative": "协作型",
+    "greedy": "贪婪型",
+    "silent": "寡言型",
+}
+
+TRAIT_DESCRIPTIONS = {
+    "cooperative": "更愿意通信与协作，倾向共享高价值线索。",
+    "greedy": "优先追逐高价值资源，更激进地争夺收益。",
+    "silent": "低通信、低暴露，偏向独立生存和稳健移动。",
 }
 
 
@@ -284,6 +302,13 @@ def _inject_styles() -> None:
             margin-bottom: 0.55rem;
         }
 
+        .action-agent-profile {
+            margin-bottom: 0.6rem;
+            color: var(--muted);
+            font-size: 0.84rem;
+            line-height: 1.5;
+        }
+
         .action-message-box {
             border-left: 4px solid #1f4e79;
             background: rgba(31, 78, 121, 0.07);
@@ -374,9 +399,16 @@ def _describe_event(event: dict[str, Any]) -> str:
     return event_type
 
 
-def _build_live_action_rows(actions: dict[str, Any]) -> list[dict[str, str]]:
+def _trait_profile_text(trait: str) -> tuple[str, str]:
+    return TRAIT_LABELS.get(trait, trait or "未知"), TRAIT_DESCRIPTIONS.get(trait, "当前没有额外性格说明。")
+
+
+def _build_live_action_rows(actions: dict[str, Any], agents: dict[str, Any]) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for agent_id, action in sorted(actions.items()):
+        agent = agents.get(agent_id)
+        trait_value = getattr(getattr(agent, "trait", None), "value", "unknown")
+        trait_label, persona = _trait_profile_text(trait_value)
         action_type = getattr(action, "action_type", None)
         is_message = bool(action_type and action_type.value == "message")
         message_content = getattr(action, "content", "") or ""
@@ -397,18 +429,30 @@ def _build_live_action_rows(actions: dict[str, Any]) -> list[dict[str, str]]:
                 "goal": getattr(action, "current_goal", "") or "-",
                 "planned_target": str(getattr(action, "planned_target_position", None) or "-"),
                 "social": "-",
+                "family": getattr(agent, "family_id", "-"),
+                "trait": trait_label,
+                "persona": persona,
             }
         )
     return rows
 
 
-def _build_replay_action_rows(events: list[dict[str, Any]], turn: int) -> list[dict[str, str]]:
+def _build_replay_action_rows(
+    events: list[dict[str, Any]],
+    turn: int,
+    metadata: dict[str, Any],
+    world: WorldState,
+) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
+    agent_traits = metadata.get("agent_traits", {}) if isinstance(metadata, dict) else {}
     current_turn_events = [event for event in events if int(event.get("turn", 0)) == turn]
     for event in current_turn_events:
         agent_id = event.get("agent_id")
         if not agent_id or event.get("event_type") in {"turn_start", "turn_end"}:
             continue
+        agent_state = world.agents.get(str(agent_id))
+        trait_value = str(agent_traits.get(str(agent_id), "unknown"))
+        trait_label, persona = _trait_profile_text(trait_value)
         payload = event.get("payload", {})
         message = payload.get("message", {}) if isinstance(payload, dict) else {}
         is_message = event.get("event_type") == "message"
@@ -427,6 +471,9 @@ def _build_replay_action_rows(events: list[dict[str, Any]], turn: int) -> list[d
                 "goal": str(payload.get("current_goal", "-")) or "-",
                 "planned_target": str(payload.get("planned_target_position", "-")),
                 "social": _social_badge_text(event),
+                "family": "-" if agent_state is None else agent_state.family_id,
+                "trait": trait_label,
+                "persona": persona,
             }
         )
     return rows
@@ -464,6 +511,9 @@ def _render_action_panel(action_rows: list[dict[str, str]], title: str) -> None:
         goal = escape(row.get("goal", "-") or "-")
         planned_target = escape(row.get("planned_target", "-") or "-")
         social = escape(row.get("social", "-") or "-")
+        family = escape(row.get("family", "-") or "-")
+        trait = escape(row.get("trait", "-") or "-")
+        persona = escape(row.get("persona", "-") or "-")
         is_message = row.get("is_message") == "1"
         color = AGENT_COLORS.get(row["agent"], "#444")
         card_class = "action-card action-card-message" if is_message else "action-card"
@@ -506,6 +556,7 @@ def _render_action_panel(action_rows: list[dict[str, str]], title: str) -> None:
                 f'<span class="action-pill">来源 {source}</span>'
                 '</div>'
                 '</div>'
+                f'<div class="action-agent-profile">Family {family} · {trait} · {persona}</div>'
                 f'<div class="action-summary">{detail}</div>'
                 f'{message_box}'
                 f'<div class="action-footer"><span class="action-pill">说明 {note}</span><span class="action-pill">社会 {social}</span></div>'
@@ -612,11 +663,11 @@ def _select_replay_frame(replay: dict[str, Any], replay_key: str) -> tuple[World
         st.session_state[state_key] = len(snapshots) - 1
 
     prev_col, next_col, reset_col = st.columns([1, 1, 1])
-    if prev_col.button("上一步", key=f"prev_{replay_key}", use_container_width=True):
+    if prev_col.button("上一步", key=f"prev_{replay_key}", width="stretch"):
         st.session_state[state_key] = max(0, st.session_state[state_key] - 1)
-    if next_col.button("下一步", key=f"next_{replay_key}", use_container_width=True):
+    if next_col.button("下一步", key=f"next_{replay_key}", width="stretch"):
         st.session_state[state_key] = min(len(snapshots) - 1, st.session_state[state_key] + 1)
-    if reset_col.button("终局", key=f"reset_{replay_key}", use_container_width=True):
+    if reset_col.button("终局", key=f"reset_{replay_key}", width="stretch"):
         st.session_state[state_key] = len(snapshots) - 1
 
     selected_index = st.slider(
@@ -675,13 +726,27 @@ def _run_live_simulation(
         replay_name = "streamlit_scripted_run.json"
 
     workspace_placeholder = st.empty()
+    status_placeholder = st.empty()
     scheduler = Scheduler(config)
     last_world: WorldState | None = None
+
+    with workspace_placeholder.container():
+        _render_workspace(
+            world,
+            step_title="准备中",
+            action_rows=[],
+            moved_agent_ids=set(),
+            map_title="实时地图",
+        )
+    if mode == "llm":
+        status_placeholder.info("LLM 模式已启动，正在等待模型生成首回合决策。首回合返回前动作面板不会刷新，这是正常现象。")
+    else:
+        status_placeholder.info("模拟已启动，正在生成首回合动作。")
 
     def on_turn(current_world: WorldState, _event_bus: Any, current_actions: Any) -> None:
         nonlocal last_world
         moved_agent_ids = _build_moved_agent_ids(current_world, last_world)
-        action_rows = _build_live_action_rows(current_actions)
+        action_rows = _build_live_action_rows(current_actions, agents)
         with workspace_placeholder.container():
             _render_workspace(
                 current_world,
@@ -690,6 +755,7 @@ def _run_live_simulation(
                 moved_agent_ids=moved_agent_ids,
                 map_title="实时地图",
             )
+        status_placeholder.info(f"已完成第 {current_world.turn} 回合，正在准备下一回合动作。")
         if config.render_interval_seconds > 0:
             time.sleep(config.render_interval_seconds)
         last_world = deserialize_world_state({
@@ -717,8 +783,16 @@ def _run_live_simulation(
             ],
         })
 
-    result = scheduler.run(world, agents, replay_name=replay_name, on_turn=on_turn)
-    return load_replay(result.replay_path)
+    try:
+        with st.spinner("模拟运行中..."):
+            result = scheduler.run(world, agents, replay_name=replay_name, on_turn=on_turn)
+        status_placeholder.success(
+            f"模拟完成：共运行 {result.metrics.turn} 回合，最终存活 {result.metrics.alive_agents} 个 agent。"
+        )
+        return load_replay(result.replay_path)
+    except Exception as error:
+        status_placeholder.error(f"模拟启动失败：{error}")
+        raise
 
 
 def _render_replay_mode(catalog: list[dict[str, Any]]) -> None:
@@ -736,7 +810,7 @@ def _render_replay_mode(catalog: list[dict[str, Any]]) -> None:
     if replay.get("snapshots") and frame_index > 0:
         previous_world = deserialize_world_state(replay["snapshots"][frame_index - 1]["world"])
     moved_agent_ids = _build_moved_agent_ids(current_world, previous_world)
-    action_rows = _build_replay_action_rows(current_events, current_world.turn)
+    action_rows = _build_replay_action_rows(current_events, current_world.turn, replay.get("metadata", {}), current_world)
 
     _render_workspace(
         current_world,
@@ -747,6 +821,77 @@ def _render_replay_mode(catalog: list[dict[str, Any]]) -> None:
     )
 
 
+def _render_metric_chart(title: str, rows: list[dict[str, float | int]], metric_name: str, description: str) -> None:
+    st.markdown(
+        f'<div class="panel-shell"><div class="section-heading">{title}</div><div class="section-copy">{description}</div>',
+        unsafe_allow_html=True,
+    )
+    if not rows:
+        st.info("当前实验还没有可展示的代际汇总数据。")
+        st.markdown("</div>", unsafe_allow_html=True)
+        return
+    chart_frame = pd.DataFrame(rows)
+    st.line_chart(chart_frame, x="generation", y=metric_name, height=260)
+    st.dataframe(chart_frame, width="stretch", hide_index=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def _render_evolution_dashboard(experiment_catalog: list[dict[str, Any]]) -> None:
+    st.markdown(
+        '<div class="panel-shell"><div class="section-heading">代际演化大盘</div><div class="section-copy">读取 experiment_manifest.json，展示跨代际的生存、通信熵和欺骗频率趋势。</div></div>',
+        unsafe_allow_html=True,
+    )
+    if not experiment_catalog:
+        st.info("当前 artifacts 下还没有 experiment_manifest.json。请先运行一次多代实验。")
+        return
+
+    experiment_lookup = {entry["label"]: entry for entry in experiment_catalog}
+    selected_label = st.selectbox("选择实验", options=list(experiment_lookup), index=len(experiment_lookup) - 1)
+    selected_experiment = experiment_lookup[selected_label]
+    manifest = selected_experiment["manifest"]
+    generation_summaries = selected_experiment["generation_summaries"]
+    latest_summary = selected_experiment.get("latest_summary", {})
+
+    summary_cols = st.columns(4)
+    summary_cols[0].metric("实验 ID", selected_experiment["experiment_id"])
+    summary_cols[1].metric("Run Group", selected_experiment["run_group"])
+    summary_cols[2].metric("总代数", str(selected_experiment["generations"]))
+    summary_cols[3].metric("每代运行数", str(selected_experiment["runs_per_generation"]))
+
+    highlight_cols = st.columns(3)
+    highlight_cols[0].metric("最新平均存活回合", f"{float(latest_summary.get('average_survival_turn', 0.0)):.2f}")
+    highlight_cols[1].metric("最新信息熵", f"{float(latest_summary.get('entropy', 0.0)):.4f}")
+    highlight_cols[2].metric("最新欺骗频率", f"{float(latest_summary.get('deception_frequency', 0.0)):.4f}")
+
+    left, right = st.columns(2)
+    with left:
+        _render_metric_chart(
+            "平均存活回合趋势",
+            build_generation_metric_rows(manifest, "average_survival_turn"),
+            "average_survival_turn",
+            "X 轴为代数，Y 轴为平均存活回合数，用于观察策略是否随代际改进。",
+        )
+        _render_metric_chart(
+            "欺骗频率趋势",
+            build_generation_metric_rows(manifest, "deception_frequency"),
+            "deception_frequency",
+            "X 轴为代数，Y 轴为 deception frequency，用于观察高阶博弈是否涌现。",
+        )
+    with right:
+        _render_metric_chart(
+            "语言熵趋势",
+            build_generation_metric_rows(manifest, "entropy"),
+            "entropy",
+            "X 轴为代数，Y 轴为香农信息熵，用于观察消息系统是否自发压缩。",
+        )
+        st.markdown(
+            '<div class="panel-shell"><div class="section-heading">代际汇总表</div><div class="section-copy">generation_summaries 原始聚合结果，方便导出到汇报材料。</div>',
+            unsafe_allow_html=True,
+        )
+        st.dataframe(pd.DataFrame(generation_summaries), width="stretch", hide_index=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
 def main() -> None:
     st.set_page_config(page_title="Project Darwin", layout="wide")
     _inject_styles()
@@ -754,6 +899,7 @@ def main() -> None:
 
     artifact_root = Path("artifacts")
     catalog = build_replay_catalog(artifact_root)
+    experiment_catalog = build_experiment_catalog(artifact_root)
     llm_adapter = LLMAdapter()
 
     with st.sidebar:
@@ -786,19 +932,25 @@ def main() -> None:
             stop_when_one_agent_remains = True
             render_delay_ms = 0
 
-    if workspace_mode == "模拟模式":
-        if run_clicked:
-            _run_live_simulation(
-                simulation_mode,
-                render_delay_ms / 1000.0,
-                map_size,
-                max_turns,
-                stop_when_one_agent_remains,
-            )
+    tab_workspace, tab_evolution = st.tabs(["单局工作台", "代际演化大盘"])
+
+    with tab_workspace:
+        if workspace_mode == "模拟模式":
+            if run_clicked:
+                _run_live_simulation(
+                    simulation_mode,
+                    render_delay_ms / 1000.0,
+                    map_size,
+                    max_turns,
+                    stop_when_one_agent_remains,
+                )
+            else:
+                st.info("点击左侧“开始模拟”后，地图会逐步显示每一回合 agent 的行动。")
         else:
-            st.info("点击左侧“开始模拟”后，地图会逐步显示每一回合 agent 的行动。")
-    else:
-        _render_replay_mode(catalog)
+            _render_replay_mode(catalog)
+
+    with tab_evolution:
+        _render_evolution_dashboard(experiment_catalog)
 
 
 if __name__ == "__main__":
