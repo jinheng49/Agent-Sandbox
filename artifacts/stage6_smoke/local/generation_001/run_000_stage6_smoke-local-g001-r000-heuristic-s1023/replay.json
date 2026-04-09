@@ -1,0 +1,1272 @@
+{
+  "metadata": {
+    "run_id": "stage6_smoke-local-g001-r000-heuristic-s1023",
+    "experiment_id": "stage6_smoke",
+    "run_group": "local",
+    "generation": 1,
+    "run_index": 0,
+    "lineage_id": "mixed_population",
+    "mode": "heuristic",
+    "seed": 1023,
+    "memory_enabled": false,
+    "family_ids": [
+      "alpha",
+      "beta",
+      "gamma"
+    ],
+    "agent_traits": {
+      "agent_a": "cooperative",
+      "agent_b": "greedy",
+      "agent_c": "silent"
+    }
+  },
+  "turn": 4,
+  "world": {
+    "turn": 4,
+    "width": 10,
+    "height": 10,
+    "agents": {
+      "agent_a": {
+        "agent_id": "agent_a",
+        "family_id": "alpha",
+        "energy": 14,
+        "alive": true,
+        "position": {
+          "x": 9,
+          "y": 0
+        },
+        "inventory": {
+          "food": 1
+        }
+      },
+      "agent_b": {
+        "agent_id": "agent_b",
+        "family_id": "beta",
+        "energy": 10,
+        "alive": true,
+        "position": {
+          "x": 9,
+          "y": 0
+        },
+        "inventory": {}
+      },
+      "agent_c": {
+        "agent_id": "agent_c",
+        "family_id": "gamma",
+        "energy": 9,
+        "alive": true,
+        "position": {
+          "x": 9,
+          "y": 1
+        },
+        "inventory": {}
+      }
+    },
+    "resources": [
+      {
+        "position": {
+          "x": 7,
+          "y": 1
+        },
+        "kind": "food",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 9,
+          "y": 1
+        },
+        "kind": "gold",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 4,
+          "y": 2
+        },
+        "kind": "food",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 1,
+          "y": 3
+        },
+        "kind": "food",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 4
+        },
+        "kind": "food",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 5,
+          "y": 5
+        },
+        "kind": "food",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 8,
+          "y": 5
+        },
+        "kind": "gold",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 2,
+          "y": 6
+        },
+        "kind": "food",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 9,
+          "y": 7
+        },
+        "kind": "food",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 6,
+          "y": 8
+        },
+        "kind": "food",
+        "amount": 1
+      },
+      {
+        "position": {
+          "x": 3,
+          "y": 9
+        },
+        "kind": "food",
+        "amount": 1
+      }
+    ]
+  },
+  "agents": {
+    "agent_a": {
+      "agent_id": "agent_a",
+      "family_id": "alpha",
+      "energy": 14,
+      "alive": true,
+      "position": {
+        "x": 9,
+        "y": 0
+      },
+      "inventory": {
+        "food": 1
+      }
+    },
+    "agent_b": {
+      "agent_id": "agent_b",
+      "family_id": "beta",
+      "energy": 10,
+      "alive": true,
+      "position": {
+        "x": 9,
+        "y": 0
+      },
+      "inventory": {}
+    },
+    "agent_c": {
+      "agent_id": "agent_c",
+      "family_id": "gamma",
+      "energy": 9,
+      "alive": true,
+      "position": {
+        "x": 9,
+        "y": 1
+      },
+      "inventory": {}
+    }
+  },
+  "resources": [
+    {
+      "position": {
+        "x": 7,
+        "y": 1
+      },
+      "kind": "food",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 9,
+        "y": 1
+      },
+      "kind": "gold",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 4,
+        "y": 2
+      },
+      "kind": "food",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 1,
+        "y": 3
+      },
+      "kind": "food",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 8,
+        "y": 4
+      },
+      "kind": "food",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 5,
+        "y": 5
+      },
+      "kind": "food",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 8,
+        "y": 5
+      },
+      "kind": "gold",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 2,
+        "y": 6
+      },
+      "kind": "food",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 9,
+        "y": 7
+      },
+      "kind": "food",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 6,
+        "y": 8
+      },
+      "kind": "food",
+      "amount": 1
+    },
+    {
+      "position": {
+        "x": 3,
+        "y": 9
+      },
+      "kind": "food",
+      "amount": 1
+    }
+  ],
+  "resources_remaining": 11,
+  "events": [
+    {
+      "turn": 1,
+      "event_type": "turn_start",
+      "agent_id": null,
+      "family_id": null,
+      "payload": {
+        "alive_agents": 3,
+        "resources_remaining": 12
+      }
+    },
+    {
+      "turn": 1,
+      "event_type": "forage",
+      "agent_id": "agent_a",
+      "family_id": "alpha",
+      "payload": {
+        "resource": "food",
+        "gain": 4,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "shared": false,
+        "shared_with": []
+      }
+    },
+    {
+      "turn": 1,
+      "event_type": "forage_miss",
+      "agent_id": "agent_b",
+      "family_id": "beta",
+      "payload": {
+        "position": {
+          "x": 1,
+          "y": 0
+        }
+      }
+    },
+    {
+      "turn": 1,
+      "event_type": "move",
+      "agent_id": "agent_c",
+      "family_id": "gamma",
+      "payload": {
+        "direction": "up",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "cost": 1
+      }
+    },
+    {
+      "turn": 1,
+      "event_type": "turn_end",
+      "agent_id": null,
+      "family_id": null,
+      "payload": {
+        "alive_agents": 3,
+        "resources_remaining": 11
+      }
+    },
+    {
+      "turn": 2,
+      "event_type": "turn_start",
+      "agent_id": null,
+      "family_id": null,
+      "payload": {
+        "alive_agents": 3,
+        "resources_remaining": 11
+      }
+    },
+    {
+      "turn": 2,
+      "event_type": "message",
+      "agent_id": "agent_a",
+      "family_id": "alpha",
+      "payload": {
+        "message": {
+          "sender_id": "agent_a",
+          "sender_family_id": "alpha",
+          "content": "c",
+          "content_length": 1,
+          "channel": "broadcast",
+          "intent": "contact",
+          "target_position": null,
+          "resource_hint": null
+        },
+        "cost": 1
+      }
+    },
+    {
+      "turn": 2,
+      "event_type": "move",
+      "agent_id": "agent_b",
+      "family_id": "beta",
+      "payload": {
+        "direction": "left",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "cost": 1
+      }
+    },
+    {
+      "turn": 2,
+      "event_type": "rest",
+      "agent_id": "agent_c",
+      "family_id": "gamma",
+      "payload": {
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "turn": 2,
+      "event_type": "turn_end",
+      "agent_id": null,
+      "family_id": null,
+      "payload": {
+        "alive_agents": 3,
+        "resources_remaining": 11
+      }
+    },
+    {
+      "turn": 3,
+      "event_type": "turn_start",
+      "agent_id": null,
+      "family_id": null,
+      "payload": {
+        "alive_agents": 3,
+        "resources_remaining": 11
+      }
+    },
+    {
+      "turn": 3,
+      "event_type": "forage_miss",
+      "agent_id": "agent_a",
+      "family_id": "alpha",
+      "payload": {
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "turn": 3,
+      "event_type": "move",
+      "agent_id": "agent_b",
+      "family_id": "beta",
+      "payload": {
+        "direction": "left",
+        "position": {
+          "x": 9,
+          "y": 0
+        },
+        "cost": 1
+      }
+    },
+    {
+      "turn": 3,
+      "event_type": "move",
+      "agent_id": "agent_c",
+      "family_id": "gamma",
+      "payload": {
+        "direction": "left",
+        "position": {
+          "x": 9,
+          "y": 0
+        },
+        "cost": 1
+      }
+    },
+    {
+      "turn": 3,
+      "event_type": "turn_end",
+      "agent_id": null,
+      "family_id": null,
+      "payload": {
+        "alive_agents": 3,
+        "resources_remaining": 11
+      }
+    },
+    {
+      "turn": 4,
+      "event_type": "turn_start",
+      "agent_id": null,
+      "family_id": null,
+      "payload": {
+        "alive_agents": 3,
+        "resources_remaining": 11
+      }
+    },
+    {
+      "turn": 4,
+      "event_type": "move",
+      "agent_id": "agent_a",
+      "family_id": "alpha",
+      "payload": {
+        "direction": "left",
+        "position": {
+          "x": 9,
+          "y": 0
+        },
+        "cost": 1
+      }
+    },
+    {
+      "turn": 4,
+      "event_type": "forage_miss",
+      "agent_id": "agent_b",
+      "family_id": "beta",
+      "payload": {
+        "position": {
+          "x": 9,
+          "y": 0
+        }
+      }
+    },
+    {
+      "turn": 4,
+      "event_type": "move",
+      "agent_id": "agent_c",
+      "family_id": "gamma",
+      "payload": {
+        "direction": "down",
+        "position": {
+          "x": 9,
+          "y": 1
+        },
+        "cost": 1
+      }
+    },
+    {
+      "turn": 4,
+      "event_type": "turn_end",
+      "agent_id": null,
+      "family_id": null,
+      "payload": {
+        "alive_agents": 3,
+        "resources_remaining": 11
+      }
+    }
+  ],
+  "snapshots": [
+    {
+      "turn": 0,
+      "event_count": 0,
+      "world": {
+        "turn": 0,
+        "width": 10,
+        "height": 10,
+        "agents": {
+          "agent_a": {
+            "agent_id": "agent_a",
+            "family_id": "alpha",
+            "energy": 12,
+            "alive": true,
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "inventory": {}
+          },
+          "agent_b": {
+            "agent_id": "agent_b",
+            "family_id": "beta",
+            "energy": 12,
+            "alive": true,
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "inventory": {}
+          },
+          "agent_c": {
+            "agent_id": "agent_c",
+            "family_id": "gamma",
+            "energy": 12,
+            "alive": true,
+            "position": {
+              "x": 0,
+              "y": 1
+            },
+            "inventory": {}
+          }
+        },
+        "resources": [
+          {
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 7,
+              "y": 1
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 1
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 4,
+              "y": 2
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 1,
+              "y": 3
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 4
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 5,
+              "y": 5
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 5
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 2,
+              "y": 6
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 7
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 6,
+              "y": 8
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 3,
+              "y": 9
+            },
+            "kind": "food",
+            "amount": 1
+          }
+        ]
+      },
+      "trust": {}
+    },
+    {
+      "turn": 1,
+      "event_count": 5,
+      "world": {
+        "turn": 1,
+        "width": 10,
+        "height": 10,
+        "agents": {
+          "agent_a": {
+            "agent_id": "agent_a",
+            "family_id": "alpha",
+            "energy": 16,
+            "alive": true,
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "inventory": {
+              "food": 1
+            }
+          },
+          "agent_b": {
+            "agent_id": "agent_b",
+            "family_id": "beta",
+            "energy": 12,
+            "alive": true,
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "inventory": {}
+          },
+          "agent_c": {
+            "agent_id": "agent_c",
+            "family_id": "gamma",
+            "energy": 11,
+            "alive": true,
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "inventory": {}
+          }
+        },
+        "resources": [
+          {
+            "position": {
+              "x": 7,
+              "y": 1
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 1
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 4,
+              "y": 2
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 1,
+              "y": 3
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 4
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 5,
+              "y": 5
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 5
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 2,
+              "y": 6
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 7
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 6,
+              "y": 8
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 3,
+              "y": 9
+            },
+            "kind": "food",
+            "amount": 1
+          }
+        ]
+      },
+      "trust": {}
+    },
+    {
+      "turn": 2,
+      "event_count": 10,
+      "world": {
+        "turn": 2,
+        "width": 10,
+        "height": 10,
+        "agents": {
+          "agent_a": {
+            "agent_id": "agent_a",
+            "family_id": "alpha",
+            "energy": 15,
+            "alive": true,
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "inventory": {
+              "food": 1
+            }
+          },
+          "agent_b": {
+            "agent_id": "agent_b",
+            "family_id": "beta",
+            "energy": 11,
+            "alive": true,
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "inventory": {}
+          },
+          "agent_c": {
+            "agent_id": "agent_c",
+            "family_id": "gamma",
+            "energy": 11,
+            "alive": true,
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "inventory": {}
+          }
+        },
+        "resources": [
+          {
+            "position": {
+              "x": 7,
+              "y": 1
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 1
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 4,
+              "y": 2
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 1,
+              "y": 3
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 4
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 5,
+              "y": 5
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 5
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 2,
+              "y": 6
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 7
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 6,
+              "y": 8
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 3,
+              "y": 9
+            },
+            "kind": "food",
+            "amount": 1
+          }
+        ]
+      },
+      "trust": {}
+    },
+    {
+      "turn": 3,
+      "event_count": 15,
+      "world": {
+        "turn": 3,
+        "width": 10,
+        "height": 10,
+        "agents": {
+          "agent_a": {
+            "agent_id": "agent_a",
+            "family_id": "alpha",
+            "energy": 15,
+            "alive": true,
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "inventory": {
+              "food": 1
+            }
+          },
+          "agent_b": {
+            "agent_id": "agent_b",
+            "family_id": "beta",
+            "energy": 10,
+            "alive": true,
+            "position": {
+              "x": 9,
+              "y": 0
+            },
+            "inventory": {}
+          },
+          "agent_c": {
+            "agent_id": "agent_c",
+            "family_id": "gamma",
+            "energy": 10,
+            "alive": true,
+            "position": {
+              "x": 9,
+              "y": 0
+            },
+            "inventory": {}
+          }
+        },
+        "resources": [
+          {
+            "position": {
+              "x": 7,
+              "y": 1
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 1
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 4,
+              "y": 2
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 1,
+              "y": 3
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 4
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 5,
+              "y": 5
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 5
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 2,
+              "y": 6
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 7
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 6,
+              "y": 8
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 3,
+              "y": 9
+            },
+            "kind": "food",
+            "amount": 1
+          }
+        ]
+      },
+      "trust": {}
+    },
+    {
+      "turn": 4,
+      "event_count": 20,
+      "world": {
+        "turn": 4,
+        "width": 10,
+        "height": 10,
+        "agents": {
+          "agent_a": {
+            "agent_id": "agent_a",
+            "family_id": "alpha",
+            "energy": 14,
+            "alive": true,
+            "position": {
+              "x": 9,
+              "y": 0
+            },
+            "inventory": {
+              "food": 1
+            }
+          },
+          "agent_b": {
+            "agent_id": "agent_b",
+            "family_id": "beta",
+            "energy": 10,
+            "alive": true,
+            "position": {
+              "x": 9,
+              "y": 0
+            },
+            "inventory": {}
+          },
+          "agent_c": {
+            "agent_id": "agent_c",
+            "family_id": "gamma",
+            "energy": 9,
+            "alive": true,
+            "position": {
+              "x": 9,
+              "y": 1
+            },
+            "inventory": {}
+          }
+        },
+        "resources": [
+          {
+            "position": {
+              "x": 7,
+              "y": 1
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 1
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 4,
+              "y": 2
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 1,
+              "y": 3
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 4
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 5,
+              "y": 5
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 8,
+              "y": 5
+            },
+            "kind": "gold",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 2,
+              "y": 6
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 9,
+              "y": 7
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 6,
+              "y": 8
+            },
+            "kind": "food",
+            "amount": 1
+          },
+          {
+            "position": {
+              "x": 3,
+              "y": 9
+            },
+            "kind": "food",
+            "amount": 1
+          }
+        ]
+      },
+      "trust": {}
+    }
+  ],
+  "metrics": {
+    "turn": 4,
+    "alive_agents": 3,
+    "total_messages": 1,
+    "total_message_cost": 1,
+    "total_forage_events": 1,
+    "total_cooperation_events": 0,
+    "total_false_gold_messages": 0,
+    "total_trust_updates": 0,
+    "resources_remaining": 11
+  },
+  "communication": {
+    "vocabulary_size": 1,
+    "mean_message_length": 1.0,
+    "entropy": 0.0,
+    "word_frequency": {
+      "c": 1
+    },
+    "protocol_compression_rate": 9.0,
+    "deception_frequency": 0.0,
+    "share_gold_signals": 0,
+    "false_gold_signals": 0
+  },
+  "run_summary": {
+    "run_id": "stage6_smoke-local-g001-r000-heuristic-s1023",
+    "generation": 1,
+    "run_index": 0,
+    "mode": "heuristic",
+    "lineage_id": "mixed_population",
+    "turn": 4,
+    "alive_agents": 3,
+    "average_survival_turn": 4.0,
+    "resource_acquisition_rate": 0.25,
+    "message_cost_per_turn": 0.25,
+    "cooperation_rate": 0.0,
+    "deception_frequency": 0.0,
+    "total_messages": 1,
+    "total_message_cost": 1,
+    "total_forage_events": 1,
+    "total_cooperation_events": 0,
+    "total_false_gold_messages": 0,
+    "total_trust_updates": 0,
+    "vocabulary_size": 1,
+    "mean_message_length": 1.0,
+    "entropy": 0.0
+  }
+}

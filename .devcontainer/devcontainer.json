@@ -1,0 +1,19 @@
+{
+    "name": "Darwin Sandbox Env",
+    "build": {
+        "dockerfile": "../Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python"
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance"
+            ]
+        }
+    },
+    "forwardPorts": [8501],
+    "postCreateCommand": "echo '容器环境初始化完毕！准备开始进化实验。'"
+}
