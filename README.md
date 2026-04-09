@@ -1,39 +1,38 @@
-# Project Darwin
+# Sandbox
 
-Project Darwin 是一个多智能体生存沙盒，用来做可复现的 agent 行为实验。当前仓库已经不是一个只有基础移动和采集的原型，而是一个包含回合制环境、回放系统、结构化记忆检索、短期规划、社会推理、LLM 决策和基准实验入口的完整实验底座。
+Sandbox 是一个多智能体生存沙盒，用于做可复现的 agent 行为实验。当前仓库已经不只是基础移动和采集原型，而是一个包含离散回合制环境、回放系统、结构化记忆检索、短期规划、社会推理、LLM 决策、基准实验和可视化工作台的实验底座。
 
-它当前更适合回答这类问题：
+当前实现更适合回答这类问题：
 
-- 资源压力和通信成本会怎样改变 agent 的决策。
-- 带记忆、规划、社会推理的 LLM agent 是否优于弱化版本。
+- 资源压力、通信成本和地图尺度会怎样改变 agent 的策略。
+- 带记忆、规划、社会推理的 LLM agent 是否优于弱化版本或启发式基线。
 - 协作、欺骗、信任更新和资源竞争会在什么条件下更频繁出现。
-- 不同实验配置下，结果能否被稳定回放、比较和聚合。
+- 不同实验配置下，结果能否被稳定回放、比较、聚合和归档。
 
-## 当前状态
+> 兼容说明：项目展示名已更新为 Sandbox，但当前 Python 包名仍然是 `project_darwin`，LLM 环境变量前缀仍然是 `DARWIN_LLM_*`。README 下面所有命令均以现有代码接口为准。
 
-当前仓库已经具备以下能力：
+## 当前能力
 
 - 确定性的离散回合制网格世界。
-- 默认 6x6 方形地图，支持在 Dashboard 中调整方形地图边长。
+- 默认 6x6 方形地图，Dashboard 中可调 5 到 12 的边长。
 - 结构化动作空间：移动、采集、发送消息、休息。
 - 统一事件流、逐回合快照、Replay 持久化与复盘。
 - Scripted、Random、Heuristic、LLM 四类 agent。
-- 基于 family 和 lineage 的本地记忆存储与检索。
+- 基于 family 和 lineage 的本地 Qdrant 记忆存储与检索。
 - 结构化记忆注入：hard constraints、soft hints、examples、typed lessons。
 - 短期规划：goal 和 planned target 会进入决策与回放。
 - 显式社会推理：reputation、utility、alliance likelihood、threat level。
 - 基准实验与消融实验：memory、planning、social reasoning 可开关。
-- Streamlit Dashboard，可直接设置最大轮次、地图边长和终止条件。
+- Streamlit Dashboard，支持模拟模式与复盘模式。
 
-## 核心规则
+## 核心机制
 
 ### 世界与资源
 
-- 世界是网格地图，当前默认配置为 6x6。
-- 地图默认保持方形；在界面中通过单一边长参数控制。
+- 世界是方形网格地图，默认配置为 6x6。
 - 资源包括 food 和 gold。
 - 初始资源分布由确定性规则生成，保证实验可复现。
-- 当前默认配置没有启用集中式资源布局，竞争主要通过更小地图和资源压力产生。
+- 当前默认配置没有启用集中式资源布局，竞争主要通过小地图和资源压力触发。
 
 相关实现：
 
@@ -50,7 +49,7 @@ Agent 只能通过结构化动作影响环境，当前动作包括：
 - forage
 - message
 
-消息是结构化事件，不是自由文本协议。当前动作对象还包含：
+动作对象还会记录：
 
 - decision_source
 - decision_note
@@ -75,11 +74,9 @@ Agent 只能通过结构化动作影响环境，当前动作包括：
 
 ### 终止条件
 
-运行不再只是固定跑满轮次。
-
 - 默认情况下，只剩 1 个 agent 存活时会提前结束。
 - 同时始终保留最大轮次作为上限。
-- 可以关闭提前结束逻辑，使模拟继续跑到 max_turns。
+- Dashboard 可显式关闭提前结束逻辑。
 
 相关实现：
 
@@ -90,7 +87,7 @@ Agent 只能通过结构化动作影响环境，当前动作包括：
 
 ### ScriptedSurvivor
 
-规则最简单的 agent，用于生成稳定可解释的基线行为：
+规则最简单的 agent，用于生成稳定、可解释的基线行为：
 
 - 有资源就采集。
 - 在某些条件下发送极简消息。
@@ -110,14 +107,14 @@ Agent 只能通过结构化动作影响环境，当前动作包括：
 
 ### HeuristicSurvivor
 
-当前最强的非 LLM agent，也是 LLM 失败时的 fallback。它已经不只是简单 trait policy，而是会联合使用：
+当前最强的非 LLM agent，也是 LLM 失败时的 fallback。它会联合使用：
 
-- 基础 trait 偏置。
-- 扩展 observation。
-- 结构化 memory package。
-- 当前短期计划。
-- 资源热点和未探索位置。
-- 社会推理结果和可疑信号过滤。
+- trait 偏置
+- 扩展 observation
+- 结构化 memory package
+- 当前短期计划
+- 资源热点和未探索位置
+- 社会推理结果和可疑信号过滤
 
 相关实现：
 
@@ -127,7 +124,7 @@ Agent 只能通过结构化动作影响环境，当前动作包括：
 
 ### LLMSurvivor
 
-LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能力包括：
+LLM agent 已接入 OpenAI 兼容接口，当前能力包括：
 
 - 使用结构化 prompt 做动作决策。
 - 接收结构化记忆包而不是平面字符串。
@@ -147,7 +144,7 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 
 ### 扩展 Observation
 
-当前 observation 不只包含可见资源和附近 agent，还包括：
+当前 observation 除了可见资源和附近 agent，还包括：
 
 - recent self events
 - recent received messages
@@ -158,8 +155,6 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 - agent social profiles
 - exploration ratio
 
-这让 agent 的决策可以基于局部历史，而不只是单步视野。
-
 相关实现：
 
 - [project_darwin/environment/observation_builder.py](project_darwin/environment/observation_builder.py)
@@ -167,7 +162,7 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 
 ### Case-Based Memory
 
-当前记忆不是只有死亡总结，而是包含四类 case：
+当前记忆包含四类 case：
 
 - death_reflection
 - success_reflection
@@ -183,7 +178,7 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 
 ### Structured Retrieval
 
-检索结果会被整理成 MemoryContextPackage，而不是简单 lesson 列表。当前包结构包括：
+检索结果会整理成 MemoryContextPackage，当前包结构包括：
 
 - hard_constraints
 - soft_hints
@@ -197,7 +192,7 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 
 ### Short-Term Planning
 
-当前系统已经支持短期计划，计划会影响 heuristic 和 LLM 的决策。计划信息也会被写入 replay：
+当前系统支持短期计划，计划会影响 heuristic 和 LLM 的决策，并写入 replay：
 
 - current_goal
 - planned_target_position
@@ -212,7 +207,7 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 
 ### Social Reasoning
 
-当前社会推理已经超出单一 trust score。系统显式维护并暴露：
+当前社会推理显式维护并暴露：
 
 - sender_reputation
 - message_utility
@@ -228,11 +223,11 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 - [project_darwin/agents/heuristic_agent.py](project_darwin/agents/heuristic_agent.py)
 - [project_darwin/agents/prompt_builder.py](project_darwin/agents/prompt_builder.py)
 
-## 事件、Replay 与指标
+## Replay、指标与实验输出
 
 ### 统一事件流
 
-系统会记录结构化事件，当前常见事件包括：
+系统会记录结构化事件，常见事件包括：
 
 - turn_start
 - turn_end
@@ -261,11 +256,12 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 - communication
 - run_summary
 
-快照可用于逐帧复盘，replay 中还保留了规划与决策来源信息。
+单次运行默认输出到 `artifacts/latest_run.json`。归档运行会输出到 `artifacts/<experiment>/<run_group>/.../replay.json`。Dashboard 会自动扫描 `artifacts` 目录下的 replay 和 manifest。
 
 相关实现：
 
 - [project_darwin/analytics/replay_store.py](project_darwin/analytics/replay_store.py)
+- [project_darwin/dashboard/data_reader.py](project_darwin/dashboard/data_reader.py)
 - [project_darwin/simulation/state.py](project_darwin/simulation/state.py)
 - [project_darwin/simulation/scheduler.py](project_darwin/simulation/scheduler.py)
 
@@ -273,7 +269,6 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 
 当前指标包括：
 
-- turn
 - alive_agents
 - average_survival_turn
 - total_messages
@@ -298,24 +293,34 @@ LLM agent 已经接入真实 OpenAI 兼容接口，不再是占位。当前能�
 - [project_darwin/analytics/metrics_engine.py](project_darwin/analytics/metrics_engine.py)
 - [project_darwin/analytics/communication_analysis.py](project_darwin/analytics/communication_analysis.py)
 
-## 基准实验与可做的实验
+## Benchmark 与消融实验
 
-当前 LLM agent 不是只能跑单次演示，而是已经支持以下实验类型：
+当前实验入口支持：
 
-- scripted、heuristic、llm 的横向基线对比。
-- llm_without_memory 与 llm_with_memory 的记忆消融。
-- llm_without_planning 的规划消融。
-- llm_without_social_reasoning 的社会推理消融。
-- 多 run 聚合，输出 benchmark manifest 和 group summaries。
+- 单次运行。
+- 多 generation、多 run 的归档实验。
+- baseline benchmark。
+- extended benchmark。
+- 关闭 planning 或 social reasoning 的能力开关。
 
-当前 benchmark group 定义见：
+当前 benchmark group 包括：
+
+- scripted
+- heuristic
+- llm
+- llm_without_memory
+- llm_with_memory
+- llm_without_planning
+- llm_without_social_reasoning
+
+相关实现：
 
 - [project_darwin/experiments/run_manager.py](project_darwin/experiments/run_manager.py)
 - [project_darwin/analytics/metrics_engine.py](project_darwin/analytics/metrics_engine.py)
 
 ## Dashboard
 
-Dashboard 基于 Streamlit，当前支持两种工作模式：
+Dashboard 基于 Streamlit，支持两种工作模式：
 
 - 模拟模式
 - 复盘模式
@@ -327,44 +332,84 @@ Dashboard 基于 Streamlit，当前支持两种工作模式：
 - 调整最大轮次
 - 配置是否在只剩 1 个 agent 时提前结束
 - 调整步进渲染延迟
+- 检查当前 LLM 是否已配置
 
 复盘模式支持：
 
+- 自动发现 artifacts 下的 replay
 - 选择已有 replay
 - 按帧前进、后退、跳到终局
 - 查看地图、当前回合动作和消息
 - 查看计划、决策来源、社会线索等回放信息
+- 查看实验 manifest 的按代汇总
 
 相关实现：
 
 - [project_darwin/dashboard/app.py](project_darwin/dashboard/app.py)
 - [project_darwin/dashboard/data_reader.py](project_darwin/dashboard/data_reader.py)
 
-## 运行方式
+## 快速开始
 
 ### 1. 安装依赖
 
-仓库运行需要 Python 依赖，以及在启用记忆和 LLM 时对应的库与服务端点。当前仓库没有在 README 中固定锁定安装命令，建议按你的环境管理方式安装项目依赖后再运行。
+仓库当前没有单独的依赖清单文件，Dockerfile 中安装的依赖如下：
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install langgraph langchain-core qdrant-client streamlit pydantic rich openai
+```
+
+如果你直接使用仓库中的容器环境，默认就是 Python 3.11。
 
 ### 2. 运行测试
 
 ```bash
-python3.11 -m unittest discover -s tests -q
+python -m unittest discover -s tests -q
 ```
 
-### 3. 运行命令行入口
+### 3. 运行单次模拟
 
 ```bash
-python3.11 -m project_darwin.experiments.run_manager
+python -m project_darwin.experiments.run_manager --mode heuristic --max-turns 25
 ```
 
-### 4. 运行终端视图
+可选模式：`scripted`、`random`、`heuristic`、`llm`。
+
+### 4. 运行归档实验
 
 ```bash
-python3.11 -m project_darwin.experiments.terminal_run
+python -m project_darwin.experiments.run_manager \
+	--mode llm \
+	--experiment-id sandbox_experiment \
+	--run-group local \
+	--generations 2 \
+	--runs-per-generation 3 \
+	--archive-experiment
 ```
 
-### 5. 启动 Dashboard
+如果 `--generations` 大于 1 或 `--runs-per-generation` 大于 1，代码会自动切到归档实验路径，即使不显式传 `--archive-experiment`。
+
+### 5. 运行 benchmark
+
+基础 benchmark：
+
+```bash
+python -m project_darwin.experiments.run_manager --benchmark-baselines --runs-per-group 30
+```
+
+扩展 benchmark：
+
+```bash
+python -m project_darwin.experiments.run_manager --benchmark-baselines --benchmark-extended --runs-per-group 30
+```
+
+### 6. 运行终端视图
+
+```bash
+python -m project_darwin.experiments.terminal_run
+```
+
+### 7. 启动 Dashboard
 
 ```bash
 streamlit run project_darwin/dashboard/app.py --server.address 0.0.0.0 --server.port 8502
@@ -384,7 +429,7 @@ LLM 层使用 OpenAI 兼容接口，适配器会优先读取以下环境变量�
 - OPENAI_BASE_URL
 - OPENAI_MODEL
 
-仓库根目录的 [.env.llm](.env.llm) 会在启动时自动读取，因此你可以直接维护这个文件。
+仓库根目录的 [.env.llm](.env.llm) 会由适配器自动读取，因此可以直接维护这个文件。
 
 示例：
 
@@ -392,14 +437,6 @@ LLM 层使用 OpenAI 兼容接口，适配器会优先读取以下环境变量�
 export DARWIN_LLM_API_KEY="your-key"
 export DARWIN_LLM_BASE_URL="https://your-provider.example/v1"
 export DARWIN_LLM_MODEL="your-model-name"
-```
-
-或：
-
-```bash
-set -a
-source .env.llm
-set +a
 ```
 
 如果没有配置可用 API key，LLM agent 会退回到 heuristic fallback，而不是直接让运行失败。
@@ -439,16 +476,12 @@ project_darwin/
 - structured memory package 是否进入 agent 和 prompt
 - 短期规划是否更新并影响 fallback
 - social reasoning 是否进入 observation 和 agent profile
-- benchmark group 与 planning/social toggles 是否正确记录
+- benchmark group 与 planning 或 social toggles 是否正确记录
 - 默认小地图配置是否生效
 - 终止条件是否支持只剩 1 个存活者时提前结束
 
-本地最近一次全量测试结果为 42 个测试通过。
-
-## 下一步更自然的方向
-
-如果继续往前推进，当前最自然的下一步是：
+## 更自然的后续方向
 
 1. 把 replay 页面上的运行参数和 toggle 展示得更完整。
-2. 让 dashboard 支持更多实验参数，而不只是地图和终止条件。
+2. 让 Dashboard 暴露更多实验参数，而不只是地图和终止条件。
 3. 继续增强竞争机制，例如调整出生点或资源刷新规则。
